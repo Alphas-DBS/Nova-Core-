@@ -25,6 +25,11 @@ const setLocal = (key: string, value: any) => {
   }
 };
 
+// UUID Validator
+const isValidUUID = (id: string): boolean => {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(id);
+};
+
 export const db = {
   // --- Agent Configuration ---
   
@@ -144,7 +149,7 @@ export const db = {
   },
 
   async updateLead(id: string, updates: Partial<Lead>) {
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && isValidUUID(id)) {
       try {
         const dbUpdates: any = {};
         if (updates.name) dbUpdates.name = updates.name;
@@ -168,7 +173,7 @@ export const db = {
   },
 
   async deleteLead(id: string) {
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && isValidUUID(id)) {
       try {
         const { error } = await supabase.from('leads').delete().eq('id', id);
         if (error) throw error;
@@ -184,7 +189,7 @@ export const db = {
   // --- Sessions (Recording) ---
   
   async getSessions(leadId: string): Promise<Session[]> {
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && isValidUUID(leadId)) {
       try {
         const { data, error } = await supabase
           .from('sessions')
@@ -215,7 +220,7 @@ export const db = {
   
   async createSession(leadId: string): Promise<Session | null> {
     let createdSession: Session | null = null;
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && isValidUUID(leadId)) {
       try {
         const { data, error } = await supabase
           .from('sessions')
@@ -256,7 +261,7 @@ export const db = {
       timestamp: m.timestamp instanceof Date ? m.timestamp.toISOString() : m.timestamp
     }));
 
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && isValidUUID(sessionId)) {
       try {
         const { error } = await supabase
           .from('sessions')
@@ -277,7 +282,7 @@ export const db = {
   },
 
   async updateSessionAudio(sessionId: string, audioBlob: Blob) {
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && isValidUUID(sessionId)) {
       try {
         // Sanitize filename to avoid path issues
         const cleanSessionId = sessionId.replace(/[^a-zA-Z0-9-]/g, '');
