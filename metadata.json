@@ -1,0 +1,8 @@
+{
+  "name": "NovaAgent - Egyptian AI Sales Core",
+  "description": "A futuristic, white-label AI sales and operations agent designed for the Egyptian market. Features real-time voice interaction, admin dashboard, CRM integration, and embeddable agent frames.",
+  "requestFramePermissions": [
+    "microphone",
+    "camera"
+  ]
+}
