@@ -25,43 +25,69 @@ const LandingPage: React.FC<LandingPageProps> = ({ config, onStartDemo, logoUrl,
 
   return (
     <div 
-      className="w-full relative"
+      className="w-full relative min-h-screen bg-[#050505] text-white"
       style={{ fontFamily: fontFamily }}
     >
+      {/* Navigation */}
+      <nav className="fixed top-0 w-full z-50 bg-black/50 backdrop-blur-xl border-b border-white/5 px-6 py-4 flex justify-between items-center">
+        <div className="flex items-center gap-3">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-neon-blue to-neon-purple flex items-center justify-center font-bold text-black text-xl shadow-[0_0_20px_rgba(0,243,255,0.3)]">
+            N
+          </div>
+          <span className="text-xl font-bold tracking-tighter uppercase italic">NovaAgent <span className="text-neon-blue">Enterprise</span></span>
+        </div>
+        <div className="hidden md:flex items-center gap-8 text-sm font-semibold text-gray-400">
+          <a href="#features" className="hover:text-neon-blue transition-colors">Features</a>
+          <a href="#saas" className="hover:text-neon-blue transition-colors">SaaS Core</a>
+          <a href="#wp" className="hover:text-neon-blue transition-colors">WordPress</a>
+          <button 
+            onClick={() => window.location.hash = 'admin'}
+            className="px-5 py-2 rounded-full border border-white/10 hover:border-neon-blue hover:text-white transition-all bg-white/5"
+          >
+            Partner Login
+          </button>
+        </div>
+      </nav>
+
       {/* Hero Section */}
-      <section className="min-h-[90vh] flex flex-col items-center justify-center text-center px-4 relative overflow-hidden">
-        <div className="max-w-4xl space-y-8 relative z-10 animate-float">
-          {logoUrl && (
-             <img 
-               src={logoUrl} 
-               alt={companyName} 
-               className="w-20 h-20 mx-auto object-contain mb-4" 
-               style={{ filter: `drop-shadow(0 0 20px ${hexToRgba(primaryColor, 0.3)})` }}
-             />
-          )}
-          <h1 className="text-5xl md:text-8xl font-black tracking-tighter leading-tight bg-clip-text text-transparent bg-gradient-to-b from-white via-gray-200 to-gray-600 pb-2">
-            {config.heroHeadline}
+      <section className="min-h-screen flex flex-col items-center justify-center text-center px-4 relative overflow-hidden pt-20">
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-full h-full pointer-events-none">
+           <div className="absolute top-20 left-1/4 w-96 h-96 bg-neon-blue/10 rounded-full blur-[120px] animate-pulse"></div>
+           <div className="absolute bottom-20 right-1/4 w-96 h-96 bg-neon-purple/10 rounded-full blur-[120px] animate-pulse"></div>
+        </div>
+
+        <div className="max-w-5xl space-y-8 relative z-10">
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/5 border border-white/10 mb-4">
+             <span className="w-2 h-2 rounded-full bg-neon-blue animate-pulse"></span>
+             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">v2.0 Enterprise Multi-Tenant Core</span>
+          </div>
+
+          <h1 className="text-5xl md:text-8xl font-black tracking-tighter leading-[0.9] bg-clip-text text-transparent bg-gradient-to-b from-white via-gray-200 to-gray-500 pb-4">
+            THE AI SALES <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-neon-blue via-white to-neon-purple">FORCE FOR SAAS</span>
           </h1>
+          
           <p className="text-lg md:text-2xl text-gray-400 font-light max-w-2xl mx-auto leading-relaxed">
-            {config.heroSubheadline}
+            Deploy white-label AI agents that sell, qualify, and close. 
+            Built for agencies, enterprise companies, and WordPress ecosystems.
           </p>
-          <div className="pt-8">
+
+          <div className="flex flex-col md:flex-row items-center justify-center gap-4 pt-8">
             <button 
               onClick={onStartDemo}
-              className="group relative px-10 py-5 text-black font-bold text-lg rounded-full overflow-hidden transition-all hover:scale-105"
-              style={{ 
-                backgroundColor: primaryColor,
-                boxShadow: `0 0 20px ${hexToRgba(primaryColor, 0.2)}`
-              }}
+              className="group relative px-10 py-5 bg-neon-blue text-black font-black text-lg rounded-2xl hover:scale-105 transition-all shadow-[0_0_30px_rgba(0,243,255,0.4)] overflow-hidden"
             >
-              <div className="absolute inset-0 bg-white/40 translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
-              <span className="relative flex items-center gap-3">
-                {config.heroCtaText}
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7l5 5m0 0l-5 5m5-5H6" /></svg>
-              </span>
+              <span className="relative z-10">INITIATE AGENT CORE</span>
+              <div className="absolute inset-0 bg-white translate-y-full group-hover:translate-y-0 transition-transform duration-300"></div>
             </button>
-            <p className="mt-4 text-xs text-gray-500 uppercase tracking-widest">Voice Interaction • Real-time AI</p>
+            <button 
+              onClick={() => window.location.hash = 'admin'}
+              className="px-10 py-5 bg-white/5 border border-white/10 text-white font-bold text-lg rounded-2xl hover:bg-white/10 transition-all"
+            >
+              ACCESS SaaS DASHBOARD
+            </button>
           </div>
+          <p className="mt-4 text-xs text-gray-500 uppercase tracking-widest">Voice Interaction • Multi-Tenant • White-Label</p>
         </div>
       </section>
 
@@ -147,7 +173,7 @@ const LandingPage: React.FC<LandingPageProps> = ({ config, onStartDemo, logoUrl,
       </section>
 
       {/* Bottom CTA */}
-      <section className="py-20 text-center">
+      <section className="py-20 text-center relative">
          <button 
            onClick={onStartDemo}
            className="text-white border-b pb-1 transition-colors text-lg tracking-widest uppercase"
@@ -159,6 +185,16 @@ const LandingPage: React.FC<LandingPageProps> = ({ config, onStartDemo, logoUrl,
          >
            Book Your Consultation Now
          </button>
+         
+         {/* Hidden SaaS Admin Link */}
+         <div className="absolute bottom-4 right-4 opacity-0 hover:opacity-100 transition-opacity">
+            <a 
+              href="/?mode=saas" 
+              className="text-[8px] text-gray-800 uppercase tracking-widest font-mono"
+            >
+              System Core Access
+            </a>
+         </div>
       </section>
 
       <style>{`

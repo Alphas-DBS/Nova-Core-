@@ -14,7 +14,7 @@ interface AdminDashboardProps {
   onSave: (config: AgentConfig) => Promise<void>;
 }
 
-type TabID = 'overview' | 'landing' | 'crm' | 'company' | 'products' | 'personas' | 'scripts' | 'objections' | 'faqs' | 'process' | 'pricing' | 'docs' | 'tone' | 'deploy';
+type TabID = 'overview' | 'saas' | 'landing' | 'crm' | 'company' | 'products' | 'personas' | 'scripts' | 'objections' | 'faqs' | 'process' | 'pricing' | 'docs' | 'tone' | 'deploy';
 
 // CSV Helper Functions
 const exportToCSV = (data: any[], filename: string) => {
@@ -244,13 +244,15 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ config, setConfig, lead
     const total = leads.length;
     const closed = leads.filter(l => l.status === 'Closed').length;
     const positive = leads.filter(l => l.sentiment === 'Positive').length;
+    const avgIntent = total > 0 ? (leads.reduce((acc, l) => acc + (l.intentScore || 0), 0) / total).toFixed(0) : '0';
     const conversionRate = total > 0 ? ((closed / total) * 100).toFixed(1) : '0.0';
     const sentimentScore = total > 0 ? ((positive / total) * 100).toFixed(0) : '0';
-    return { total, conversionRate, sentimentScore };
+    return { total, conversionRate, sentimentScore, avgIntent };
   }, [leads]);
 
   const menuItems: { id: TabID; label: string; icon: string }[] = [
     { id: 'overview', label: 'Overview', icon: '📊' },
+    { id: 'saas', label: 'SaaS & Usage', icon: '💎' },
     { id: 'landing', label: 'Landing Page', icon: '🌐' },
     { id: 'crm', label: 'CRM & Leads', icon: '👥' },
     { id: 'company', label: 'Company Info', icon: '🏢' },
@@ -423,11 +425,17 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ config, setConfig, lead
              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <div className="col-span-1 md:col-span-3 bg-gradient-to-r from-neon-blue/20 to-neon-purple/20 p-8 rounded-2xl border border-white/10 flex flex-col md:flex-row items-center justify-between gap-4 text-center md:text-left">
                    <div>
-                     <h3 className="text-2xl font-bold mb-2">Agent Status: Active</h3>
-                     <p className="text-gray-300">Your agent is currently deployed and handling traffic.</p>
+                     <h3 className="text-2xl font-bold mb-2">Enterprise Agent: Active</h3>
+                     <p className="text-gray-300">Your multi-tenant core is processing sessions across all endpoints.</p>
                    </div>
-                   <div className="w-16 h-16 rounded-full bg-neon-blue/20 flex items-center justify-center animate-pulse shrink-0">
-                      <div className="w-8 h-8 rounded-full bg-neon-blue"></div>
+                   <div className="flex gap-4">
+                      <div className="text-center">
+                        <p className="text-xs text-gray-400 uppercase">Intent Score</p>
+                        <p className="text-2xl font-bold text-neon-blue">{stats.avgIntent}%</p>
+                      </div>
+                      <div className="w-16 h-16 rounded-full bg-neon-blue/20 flex items-center justify-center animate-pulse shrink-0">
+                        <div className="w-8 h-8 rounded-full bg-neon-blue"></div>
+                      </div>
                    </div>
                 </div>
                 <div className="p-6 rounded-xl glass-panel border border-white/5">
@@ -443,6 +451,66 @@ const AdminDashboard: React.FC<AdminDashboardProps> = ({ config, setConfig, lead
                   <p className="text-4xl font-bold text-green-400">{stats.sentimentScore}%</p>
                 </div>
              </div>
+          )}
+
+          {activeTab === 'saas' && (
+            <div className="space-y-8">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="p-6 rounded-xl bg-white/5 border border-white/10">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase mb-2">Conversations</h3>
+                  <p className="text-2xl font-bold">1,240 / 5,000</p>
+                  <div className="w-full h-1 bg-white/10 rounded-full mt-2">
+                    <div className="w-[24.8%] h-full bg-neon-blue rounded-full"></div>
+                  </div>
+                </div>
+                <div className="p-6 rounded-xl bg-white/5 border border-white/10">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase mb-2">Tokens Used</h3>
+                  <p className="text-2xl font-bold">452k / 1M</p>
+                  <div className="w-full h-1 bg-white/10 rounded-full mt-2">
+                    <div className="w-[45.2%] h-full bg-neon-purple rounded-full"></div>
+                  </div>
+                </div>
+                <div className="p-6 rounded-xl bg-white/5 border border-white/10">
+                  <h3 className="text-xs font-bold text-gray-400 uppercase mb-2">Voice Minutes</h3>
+                  <p className="text-2xl font-bold">128 / 500</p>
+                  <div className="w-full h-1 bg-white/10 rounded-full mt-2">
+                    <div className="w-[25.6%] h-full bg-emerald-500 rounded-full"></div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
+                <h3 className="text-lg font-bold text-neon-blue mb-4">Subscription Tier</h3>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-xl font-bold">Enterprise Plan</p>
+                    <p className="text-sm text-gray-400">Next billing cycle: April 1, 2026</p>
+                  </div>
+                  <button className="px-4 py-2 bg-white/10 hover:bg-white/20 rounded-lg text-sm font-bold transition-colors">
+                    Manage Billing
+                  </button>
+                </div>
+              </div>
+
+              <div className="bg-white/5 p-6 rounded-xl border border-white/10">
+                <h3 className="text-lg font-bold text-neon-blue mb-4">White-Label Settings</h3>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div className="flex items-center justify-between p-4 bg-black/20 rounded-lg border border-white/5">
+                    <div>
+                      <p className="font-bold">Enable White-Labeling</p>
+                      <p className="text-xs text-gray-400">Remove NovaAgent branding from widgets.</p>
+                    </div>
+                    <button 
+                      onClick={() => updateConfig('isWhiteLabel', !config.isWhiteLabel)}
+                      className={`w-12 h-6 rounded-full transition-colors relative ${config.isWhiteLabel ? 'bg-neon-blue' : 'bg-gray-700'}`}
+                    >
+                      <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-all ${config.isWhiteLabel ? 'right-1' : 'left-1'}`}></div>
+                    </button>
+                  </div>
+                  <RenderField label="Custom Domain" value={config.customDomain || ''} onChange={(v: string) => updateConfig('customDomain', v)} />
+                </div>
+              </div>
+            </div>
           )}
           
           {/* Landing Page Manager */}

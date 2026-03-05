@@ -1,5 +1,5 @@
 import { supabase, isSupabaseConfigured } from './supabaseClient';
-import { AgentConfig, Lead, Session, Message } from '../types';
+import { AgentConfig, Lead, Session, Message, Tenant } from '../types';
 
 // Storage Keys for Fallback Mode
 const LOCAL_CONFIG_KEY = 'nova_agent_config';
@@ -31,31 +31,61 @@ const isValidUUID = (id: string): boolean => {
 };
 
 export const db = {
+  // --- Tenant Management ---
+  async getTenant(id: string): Promise<Tenant | null> {
+    if (isSupabaseConfigured && isValidUUID(id)) {
+      const { data, error } = await supabase.from('tenants').select('*').eq('id', id).single();
+      if (error) return null;
+      return {
+        id: data.id,
+        name: data.name,
+        slug: data.slug,
+        ownerId: data.owner_id,
+        status: data.status,
+        branding: data.branding,
+        subscription: data.subscription,
+        createdAt: data.created_at
+      } as Tenant;
+    }
+    return null;
+  },
+
   // --- Agent Configuration ---
   
-  async getAgentConfig(): Promise<AgentConfig | null> {
+  async getAgentConfig(tenantId?: string): Promise<AgentConfig | null> {
     if (isSupabaseConfigured) {
       try {
-        const { data, error } = await supabase
-          .from('agent_configs')
-          .select('config')
-          .limit(1)
-          .maybeSingle();
+        let query = supabase.from('agent_configs').select('config, tenant_id, id');
+        if (tenantId && isValidUUID(tenantId)) {
+          query = query.eq('tenant_id', tenantId);
+        }
+        const { data, error } = await query.limit(1).maybeSingle();
 
         if (error) throw error;
-        if (data?.config) return data.config as AgentConfig;
+        if (data?.config) {
+          return { 
+            ...(data.config as AgentConfig), 
+            tenantId: data.tenant_id,
+            id: data.id 
+          };
+        }
         return null; 
       } catch (e: any) {
-        console.warn('Supabase config fetch failed (using local fallback):', e.message || e);
+        console.warn('Supabase config fetch failed:', e.message || e);
       }
     }
     return getLocal<AgentConfig | null>(LOCAL_CONFIG_KEY, null);
   },
 
   async saveAgentConfig(config: AgentConfig): Promise<boolean> {
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && config.tenantId) {
       try {
-        const { data: existing } = await supabase.from('agent_configs').select('id').limit(1);
+        const { data: existing } = await supabase
+          .from('agent_configs')
+          .select('id')
+          .eq('tenant_id', config.tenantId)
+          .limit(1);
+
         let result;
         if (existing && existing.length > 0) {
           result = await supabase
@@ -65,7 +95,7 @@ export const db = {
         } else {
           result = await supabase
             .from('agent_configs')
-            .insert([{ config }]);
+            .insert([{ config, tenant_id: config.tenantId }]);
         }
         if (result.error) throw result.error;
       } catch (e: any) {
@@ -78,17 +108,19 @@ export const db = {
 
   // --- Leads ---
 
-  async getLeads(): Promise<Lead[]> {
+  async getLeads(tenantId?: string): Promise<Lead[]> {
     if (isSupabaseConfigured) {
       try {
-        const { data, error } = await supabase
-          .from('leads')
-          .select('*')
-          .order('created_at', { ascending: false });
+        let query = supabase.from('leads').select('*');
+        if (tenantId && isValidUUID(tenantId)) {
+          query = query.eq('tenant_id', tenantId);
+        }
+        const { data, error } = await query.order('created_at', { ascending: false });
 
         if (error) throw error;
         return data.map((row: any) => ({
           id: row.id,
+          tenantId: row.tenant_id,
           name: row.name,
           company: row.company,
           status: row.status,
@@ -96,10 +128,13 @@ export const db = {
           sentiment: row.sentiment,
           phone: row.phone,
           interestedIn: row.interested_in,
-          notes: row.notes
+          notes: row.notes,
+          intentScore: row.intent_score || 0,
+          qualityScore: row.quality_score || 0,
+          source: row.source
         })) as Lead[];
       } catch (e: any) {
-        console.warn('Supabase leads fetch failed (using local fallback):', e.message || e);
+        console.warn('Supabase leads fetch failed:', e.message || e);
       }
     }
     return getLocal<Lead[]>(LOCAL_LEADS_KEY, []);
@@ -107,11 +142,12 @@ export const db = {
 
   async createLead(lead: Omit<Lead, 'id'>): Promise<Lead | null> {
     let createdLead: Lead | null = null;
-    if (isSupabaseConfigured) {
+    if (isSupabaseConfigured && lead.tenantId) {
       try {
         const { data, error } = await supabase
           .from('leads')
           .insert([{
+            tenant_id: lead.tenantId,
             name: lead.name,
             company: lead.company,
             status: lead.status,
@@ -119,7 +155,10 @@ export const db = {
             sentiment: lead.sentiment,
             phone: lead.phone,
             interested_in: lead.interestedIn,
-            notes: lead.notes
+            notes: lead.notes,
+            intent_score: lead.intentScore,
+            quality_score: lead.qualityScore,
+            source: lead.source
           }])
           .select()
           .single();
@@ -127,6 +166,7 @@ export const db = {
         if (error) throw error;
         createdLead = {
           id: data.id,
+          tenantId: data.tenant_id,
           name: data.name,
           company: data.company,
           status: data.status,
@@ -134,14 +174,17 @@ export const db = {
           sentiment: data.sentiment,
           phone: data.phone,
           interestedIn: data.interested_in,
-          notes: data.notes
+          notes: data.notes,
+          intentScore: data.intent_score,
+          qualityScore: data.quality_score,
+          source: data.source
         };
       } catch (e: any) {
         console.warn('Supabase create lead failed:', e.message || e);
       }
     }
     if (!createdLead) {
-      createdLead = { ...lead, id: Date.now().toString() };
+      createdLead = { ...lead, id: Date.now().toString() } as Lead;
     }
     const currentLocal = getLocal<Lead[]>(LOCAL_LEADS_KEY, []);
     setLocal(LOCAL_LEADS_KEY, [createdLead, ...currentLocal]);
@@ -160,6 +203,8 @@ export const db = {
         if (updates.phone) dbUpdates.phone = updates.phone;
         if (updates.interestedIn) dbUpdates.interested_in = updates.interestedIn;
         if (updates.notes) dbUpdates.notes = updates.notes;
+        if (updates.intentScore !== undefined) dbUpdates.intent_score = updates.intentScore;
+        if (updates.qualityScore !== undefined) dbUpdates.quality_score = updates.qualityScore;
         
         const { error } = await supabase.from('leads').update(dbUpdates).eq('id', id);
         if (error) throw error;
@@ -201,10 +246,12 @@ export const db = {
 
         return data.map((row: any) => ({
           id: row.id,
+          tenantId: row.tenant_id,
           leadId: row.lead_id,
           createdAt: row.created_at,
           transcript: row.transcript || [],
-          audioUrl: row.audio_url // Correctly mapped from DB
+          audioUrl: row.audio_url,
+          analytics: row.analytics
         })) as Session[];
       } catch (e: any) {
         console.warn('Supabase get sessions failed:', e);
@@ -218,22 +265,24 @@ export const db = {
     );
   },
   
-  async createSession(leadId: string): Promise<Session | null> {
+  async createSession(leadId: string, tenantId: string): Promise<Session | null> {
     let createdSession: Session | null = null;
-    if (isSupabaseConfigured && isValidUUID(leadId)) {
+    if (isSupabaseConfigured && isValidUUID(leadId) && isValidUUID(tenantId)) {
       try {
         const { data, error } = await supabase
           .from('sessions')
-          .insert([{ lead_id: leadId, transcript: [] }])
+          .insert([{ lead_id: leadId, tenant_id: tenantId, transcript: [] }])
           .select()
           .single();
         
         if (error) throw error;
         createdSession = {
           id: data.id,
+          tenantId: data.tenant_id,
           leadId: data.lead_id,
           createdAt: data.created_at,
-          transcript: data.transcript || []
+          transcript: data.transcript || [],
+          analytics: data.analytics
         };
       } catch (e: any) {
         console.warn('Supabase create session failed:', e);
@@ -244,6 +293,7 @@ export const db = {
     if (!createdSession) {
       createdSession = {
         id: Date.now().toString(),
+        tenantId,
         leadId,
         createdAt: new Date().toISOString(),
         transcript: []
@@ -252,6 +302,19 @@ export const db = {
     const sessions = getLocal<Session[]>(LOCAL_SESSIONS_KEY, []);
     setLocal(LOCAL_SESSIONS_KEY, [createdSession, ...sessions]);
     return createdSession;
+  },
+
+  async updateSessionAnalytics(sessionId: string, analytics: Session['analytics']) {
+    if (isSupabaseConfigured && isValidUUID(sessionId)) {
+      await supabase.from('sessions').update({ analytics }).eq('id', sessionId);
+    }
+  },
+
+  // --- Usage Tracking ---
+  async logUsage(tenantId: string, type: 'conversation' | 'token' | 'voice_minute', amount: number, metadata?: any) {
+    if (isSupabaseConfigured && isValidUUID(tenantId)) {
+      await supabase.from('usage_logs').insert([{ tenant_id: tenantId, type, amount, metadata }]);
+    }
   },
 
   async updateSessionTranscript(sessionId: string, transcript: Message[]) {

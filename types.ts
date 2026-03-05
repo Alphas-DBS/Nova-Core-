@@ -1,23 +1,64 @@
 
+export interface Tenant {
+  id: string;
+  name: string;
+  slug: string;
+  ownerId: string;
+  status: 'Active' | 'Suspended' | 'Pending';
+  branding: {
+    logoUrl?: string;
+    primaryColor: string;
+    whiteLabelName: string;
+  };
+  subscription: {
+    tier: 'Starter' | 'Pro' | 'Enterprise';
+    expiresAt: string;
+    limits: {
+      conversations: number;
+      tokens: number;
+      voiceMinutes: number;
+    };
+  };
+  createdAt: string;
+}
+
+export interface UsageStats {
+  conversationsCount: number;
+  tokensUsed: number;
+  voiceMinutesUsed: number;
+  revenueGenerated: number;
+}
+
 export interface Lead {
   id: string;
+  tenantId: string;
   name: string;
   company: string;
   status: 'New' | 'Contacted' | 'Qualified' | 'Closed';
   lastInteraction: string;
   sentiment: 'Positive' | 'Neutral' | 'Negative';
-  // New CRM Fields
   phone?: string;
   interestedIn?: string;
   notes?: string;
+  intentScore: number; // 0-100
+  qualityScore: number; // 0-100
+  source?: string; // Traffic source
 }
 
 export interface Session {
   id: string;
+  tenantId: string;
   leadId: string;
   createdAt: string;
   transcript: Message[];
-  audioUrl?: string; // URL to the recorded blob
+  audioUrl?: string;
+  analytics?: {
+    dropOffDetected: boolean;
+    objectionPatterns: string[];
+    upsellOpportunities: string[];
+    buyingIntentScore: number;
+    hesitationDetected: boolean;
+  };
 }
 
 export interface CompanyInfo {
@@ -131,6 +172,8 @@ export interface LandingPageConfig {
 }
 
 export interface AgentConfig {
+  id?: string;
+  tenantId: string;
   // Core Identifiers
   name: string;
   logoUrl?: string;
@@ -138,6 +181,10 @@ export interface AgentConfig {
   systemInstruction: string; // The compiled prompt
   language: 'en-US' | 'ar-EG';
   companyName: string; // Kept for backward compat/simple access
+  
+  // Enterprise Modules
+  isWhiteLabel: boolean;
+  customDomain?: string;
 
   // New Management Modules
   companyInfo: CompanyInfo;
@@ -158,7 +205,8 @@ export interface AgentConfig {
 export enum AppMode {
   LANDING = 'LANDING',
   ADMIN = 'ADMIN',
-  AGENT_VIEW = 'AGENT_VIEW'
+  AGENT_VIEW = 'AGENT_VIEW',
+  SAAS_ADMIN = 'SAAS_ADMIN'
 }
 
 export type AgentStatus = 'idle' | 'connecting' | 'listening' | 'processing' | 'speaking' | 'error';

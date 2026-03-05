@@ -3,6 +3,7 @@ import { GoogleGenAI, Chat, GenerateContentResponse } from "@google/genai";
 import { AgentConfig, Lead, AppMode, AgentStatus, Message, Session } from './types';
 import Orb from './components/Orb';
 import AdminDashboard from './components/AdminDashboard';
+import SaaSAdminDashboard from './components/SaaSAdminDashboard';
 import LandingPage from './components/LandingPage';
 import { LiveClient } from './services/liveApi';
 import { db } from './services/db';
@@ -58,6 +59,12 @@ const compileSystemPrompt = (c: AgentConfig): string => {
     You are "${c.name}", an elite AI Sales & Operations Agent for "${c.companyInfo.name}".
     Your Voice Persona is ${c.voiceName}.
     
+    BEHAVIORAL ENGINE (CRITICAL):
+    - Detect Hesitation: If user pauses or uses "maybe", "I don't know", "let me think", switch to Reassurance Mode.
+    - Detect Price Sensitivity: If user asks about price early or says "expensive", switch to ROI Justification Mode.
+    - Buying Intent Scoring: Silently evaluate the user's intent from 0-100.
+    - Automatically switch sales strategy based on detected intent.
+
     COMPANY PROFILE:
     Description: ${c.companyInfo.description}
     USP: ${c.companyInfo.usp}
@@ -107,6 +114,7 @@ const compileSystemPrompt = (c: AgentConfig): string => {
       2. Their Phone Number
       3. A specific Product Interest
       4. Any important Note or Requirement
+    - Also update "intentScore" (0-100) and "qualityScore" (0-100) based on the conversation.
     - Do NOT ask for permission to save these details. Just call the tool in the background.
     - After calling the tool, you MUST verbally confirm to the user (e.g., "I've updated your record with that information," or "Got it, I've noted that down").
     - If the user changes the topic or expresses a clear sentiment, update the "sentiment" and "status" fields using the tool.
@@ -123,6 +131,7 @@ const compileSystemPrompt = (c: AgentConfig): string => {
 
 // Default config fallback
 const DEFAULT_CONFIG: AgentConfig = {
+    tenantId: '00000000-0000-0000-0000-000000000000', // Default Tenant
     // Identity
     name: 'Nova',
     logoUrl: 'https://cdn-icons-png.flaticon.com/512/3616/3616450.png',
@@ -130,6 +139,7 @@ const DEFAULT_CONFIG: AgentConfig = {
     voiceName: 'Kore',
     systemInstruction: '', // Will be compiled
     companyName: 'Nova Systems',
+    isWhiteLabel: false,
     
     // Default Data
     companyInfo: {
@@ -214,6 +224,17 @@ function App() {
   const [isLoadingData, setIsLoadingData] = useState(true);
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
 
+  // --- URL Mode Handling ---
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const urlMode = params.get('mode');
+    if (urlMode === 'saas') {
+      setMode(AppMode.SAAS_ADMIN);
+    } else if (urlMode === 'admin') {
+      setMode(AppMode.ADMIN);
+    }
+  }, []);
+
   // --- Data Persistence ---
   
   // Fetch initial data (Config + Leads)
@@ -262,6 +283,7 @@ function App() {
     const tempName = `Guest User ${Math.floor(Math.random() * 9000) + 1000}`;
     // Create in DB
     const created = await db.createLead({
+      tenantId: config.tenantId,
       name: tempName,
       company: 'Unknown',
       status: 'New',
@@ -269,13 +291,15 @@ function App() {
       sentiment: 'Neutral',
       phone: '',
       interestedIn: 'General Interest',
-      notes: ''
+      notes: '',
+      intentScore: 0,
+      qualityScore: 0
     });
 
     if (created) {
        setLeads(prev => [created, ...prev]);
        // Create Session for recording transcript
-       const session = await db.createSession(created.id);
+       const session = await db.createSession(created.id, config.tenantId);
        if (session) {
          setCurrentSessionId(session.id);
        }
@@ -318,6 +342,7 @@ function App() {
   useEffect(() => {
     if (mode === AppMode.AGENT_VIEW) {
       const apiKey = getApiKey();
+    if (!apiKey) return;
       if (!apiKey) {
         console.error("API Key missing");
         return;
@@ -366,7 +391,7 @@ function App() {
 
     try {
       const result = await chatSessionRef.current.sendMessage({ message: userText });
-      const responseText = result.text;
+      const responseText = result.text || "I'm sorry, I couldn't process that.";
       
       const modelMsg: Message = {
         id: (Date.now() + 1).toString(),
@@ -488,6 +513,12 @@ function App() {
           setTimeout(() => setNotification(null), 3000);
         }}
       />
+    );
+  }
+
+  if (mode === AppMode.SAAS_ADMIN) {
+    return (
+      <SaaSAdminDashboard onClose={() => setMode(AppMode.LANDING)} />
     );
   }
 

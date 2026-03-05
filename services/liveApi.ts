@@ -207,16 +207,14 @@ export class LiveClient {
                 this.setStatus('idle');
               }
             },
-            config: {
-              responseModalities: [Modality.AUDIO],
-              speechConfig: {
-                voiceConfig: { prebuiltVoiceConfig: { voiceName: this.config.voiceName } },
-              },
-              systemInstruction: this.config.systemInstruction,
-              inputAudioTranscription: { },
-              outputAudioTranscription: { },
-              tools: [{ functionDeclarations: [updateLeadTool] }]
-            }
+              config: {
+                responseModalities: [Modality.AUDIO],
+                speechConfig: {
+                  voiceConfig: { prebuiltVoiceConfig: { voiceName: this.config.voiceName } },
+                },
+                systemInstruction: { parts: [{ text: this.config.systemInstruction }] },
+                tools: [{ functionDeclarations: [updateLeadTool] }]
+              } as any
           });
         } catch (e: any) {
           if (retries > 0 && (e.message?.includes('unavailable') || e.status === 503)) {
@@ -295,7 +293,7 @@ export class LiveClient {
   }
 
   private async handleMessage(message: LiveServerMessage) {
-    if (message.toolCall) {
+    if (message.toolCall && message.toolCall.functionCalls) {
       for (const fc of message.toolCall.functionCalls) {
         if (fc.name === 'update_lead' && this.onLeadUpdate) {
            console.log("Agent updating lead:", fc.args);
@@ -314,11 +312,11 @@ export class LiveClient {
       }
     }
 
-    if (message.serverContent?.outputTranscription?.text) {
-      this.currentOutputTranscription += message.serverContent.outputTranscription.text;
+    if ((message.serverContent as any)?.outputAudioTranscription?.text) {
+      this.currentOutputTranscription += (message.serverContent as any).outputAudioTranscription.text;
     }
-    if (message.serverContent?.inputTranscription?.text) {
-      this.currentInputTranscription += message.serverContent.inputTranscription.text;
+    if ((message.serverContent as any)?.inputAudioTranscription?.text) {
+      this.currentInputTranscription += (message.serverContent as any).inputAudioTranscription.text;
     }
 
     if (message.serverContent?.turnComplete) {
@@ -332,7 +330,7 @@ export class LiveClient {
       }
     }
 
-    const base64Audio = message.serverContent?.modelTurn?.parts[0]?.inlineData?.data;
+    const base64Audio = message.serverContent?.modelTurn?.parts?.[0]?.inlineData?.data;
     if (base64Audio && this.outputAudioContext && this.outputNode) {
       if (this.currentStatus !== 'speaking') {
         this.setStatus('speaking');
